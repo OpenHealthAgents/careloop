@@ -1,0 +1,12 @@
+-- AlterEnum
+ALTER TYPE "EpistemicStatus" ADD VALUE 'UNKNOWN';
+
+-- AlterTable
+ALTER TABLE "Barrier" ADD COLUMN     "detectedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "evidenceSummary" TEXT,
+ADD COLUMN     "modelVersion" TEXT,
+ADD COLUMN     "reviewNotes" TEXT,
+ADD COLUMN     "reviewStatus" TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+ADD COLUMN     "reviewedAt" TIMESTAMP(3),
+ADD COLUMN     "reviewedById" TEXT,
+ADD COLUMN     "source" TEXT NOT NULL DEFAULT 'DETERMINISTIC_RULES';

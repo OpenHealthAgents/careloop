@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+:root {
+  /* Warm Neutral Surfaces */
+  --canvas-bg: #faf8f5;
+  --canvas-surface: #ffffff;
+  --canvas-subtle: #f4f0eb;
+  --canvas-muted: #eae5de;
+  --canvas-border: #e2ddd5;
+  --canvas-border-strong: #c7c0b5;
+
+  /* Typography & Ink */
+  --ink-primary: #191716;
+  --ink-secondary: #5c5650;
+  --ink-tertiary: #8a8279;
+  --ink-muted: #a8a199;
+
+  /* Distinctive CareLoop Brand (Eucalyptus Pine Teal) */
+  --brand-primary: #0e6156;
+  --brand-hover: #09473f;
+  --brand-dark: #06312b;
+  --brand-light: #ebf5f3;
+  --brand-border: #c8e4de;
+
+  /* Secondary Accent (Warm Honey Amber Gold) */
+  --accent-primary: #c87d2a;
+  --accent-hover: #a6631b;
+  --accent-light: #fef6ea;
+  --accent-border: #f6dcb8;
+  --accent-text: #8f5012;
+
+  /* Subtle Semantic Statuses */
+  --success-text: #1e7e55;
+  --success-bg: #edf7f2;
+  --success-border: #c6e7d6;
+
+  --warning-text: #b45309;
+  --warning-bg: #fef7ed;
+  --warning-border: #fde3c4;
+
+  --info-text: #335c7a;
+  --info-bg: #f0f4f8;
+  --info-border: #d0deeb;
+
+  --error-text: #b91c1c;
+  --error-bg: #fef2f2;
+  --error-border: #fca5a5;
+}
+
+html {
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+body {
+  background-color: var(--canvas-bg);
+  color: var(--ink-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Editorial typography refinement */
+h1, h2, h3, h4 {
+  text-wrap: balance;
+  letter-spacing: -0.025em;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Accessible focus outline */
+*:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle Card & Elevation Utilities */
+.shadow-soft {
+  box-shadow: 0 2px 8px -2px rgba(25, 23, 22, 0.04), 0 1px 3px rgba(25, 23, 22, 0.02);
+}
+
+.shadow-card {
+  box-shadow: 0 10px 25px -5px rgba(25, 23, 22, 0.05), 0 2px 6px -2px rgba(25, 23, 22, 0.02);
+}
+
+.shadow-elevated {
+  box-shadow: 0 20px 40px -10px rgba(25, 23, 22, 0.08), 0 4px 12px -2px rgba(25, 23, 22, 0.03);
+}
+
+.shadow-highlight {
+  box-shadow: 0 0 0 1px rgba(14, 97, 86, 0.15), 0 12px 30px -8px rgba(14, 97, 86, 0.12);
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,1124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// Explicit Domain Enums
+// ==========================================
+
+enum UserRole {
+  ADMIN
+  CARE_MANAGER
+  HEALTH_EQUITY
+  OPERATIONS
+  EXECUTIVE_READ_ONLY
+  AGENT_SERVICE
+}
+
+enum ReferralStatus {
+  RECEIVED
+  TRIAGED
+  IN_CASE
+  APPOINTMENT_SCHEDULED
+  COMPLETED
+  CLOSED_UNRESOLVED
+  CANCELLED
+}
+
+enum CaseStatus {
+  NEW
+  TRIAGED
+  BARRIER_IDENTIFIED
+  INTERVENTION_RECOMMENDED
+  INTERVENTION_IN_PROGRESS
+  APPOINTMENT_SCHEDULED
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_COMPLETED
+  VERIFIED
+  CLOSED
+  ESCALATED
+  BLOCKED
+  REQUIRES_HUMAN_REVIEW
+  LOST_TO_FOLLOW_UP
+}
+
+enum RiskLevel {
+  HIGH
+  MEDIUM
+  LOW
+  UNKNOWN
+}
+
+enum BarrierCategory {
+  ACCESS
+  ADMINISTRATIVE
+  FINANCIAL
+  COMMUNICATION
+  BEHAVIORAL
+  SOCIAL_LOGISTICAL
+  UNKNOWN
+}
+
+enum EpistemicStatus {
+  FACT
+  INFERENCE
+  UNKNOWN
+}
+
+enum InterventionType {
+  ALTERNATIVE_PROVIDER_SEARCH
+  LANGUAGE_COMPATIBLE_PROVIDER_SEARCH
+  ASSISTED_SCHEDULING
+  TRANSPORTATION_SUPPORT
+  BENEFIT_NETWORK_EXPLANATION
+  REFERRAL_COMPLETION_ASSISTANCE
+  MISSED_APPOINTMENT_REENGAGEMENT
+  HUMAN_OUTREACH
+  ESCALATION
+}
+
+enum InterventionStatus {
+  RECOMMENDED
+  APPROVED
+  MODIFIED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  FAILED
+}
+
+enum InterventionExecutionMode {
+  AUTOMATED
+  HUMAN_ASSISTED
+  HUMAN_ONLY
+}
+
+enum RecommendationStatus {
+  PENDING
+  APPROVED
+  MODIFIED
+  REJECTED
+  EXPIRED
+  SUPERSEDED
+}
+
+enum AvailabilitySource {
+  VERIFIED_AVAILABILITY
+  DIRECTORY_INFORMATION
+  NOT_AVAILABLE
+}
+
+enum AppointmentStatus {
+  PROPOSED
+  REQUESTED
+  SCHEDULED
+  CONFIRMED
+  RESCHEDULED
+  CANCELLED
+  NO_SHOW
+  COMPLETED
+  UNKNOWN
+}
+
+enum VerificationStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  DISPUTED
+  INSUFFICIENT_EVIDENCE
+}
+
+enum WorkflowEventType {
+  CASE_CREATED
+  STATUS_TRANSITION
+  RISK_ASSESSED
+  BARRIER_IDENTIFIED
+  BARRIER_CONFIRMED
+  INTERVENTION_RECOMMENDED
+  INTERVENTION_APPROVED
+  INTERVENTION_MODIFIED
+  INTERVENTION_REJECTED
+  INTERVENTION_COMPLETED
+  APPOINTMENT_SCHEDULED
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_COMPLETED
+  APPOINTMENT_NO_SHOW
+  ESCALATED
+  COMPLETION_VERIFIED
+  CASE_CLOSED
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
+  AGENT_RESUMED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum VerificationSignalType {
+  APPOINTMENT_SCHEDULED
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_COMPLETED
+  CLAIM_RECEIVED
+  PROVIDER_CONFIRMATION
+  MEMBER_CONFIRMATION
+  SUBSEQUENT_TREATMENT_ENGAGEMENT
+}
+
+enum AIOperation {
+  CLASSIFY_BARRIER
+  CALCULATE_RISK
+  RECOMMEND_INTERVENTION
+  SUMMARIZE_CASE
+  GENERATE_COMMUNICATION
+  MATCH_PROVIDER
+}
+
+enum CommunicationChannel {
+  SMS
+  PHONE
+  EMAIL
+  PORTAL
+  IN_PERSON_NAVIGATOR
+}
+
+enum CommunicationMessageType {
+  REFERRAL_NOTIFICATION
+  PROVIDER_OPTIONS
+  SCHEDULING_REMINDER
+  APPOINTMENT_CONFIRMATION
+  APPOINTMENT_REMINDER
+  MISSED_APPOINTMENT
+  RE_ENGAGEMENT
+  HUMAN_OUTREACH
+  COMPLETION_CONFIRMATION
+}
+
+enum ReadingLevel {
+  SIMPLE
+  PLAIN
+  STANDARD
+}
+
+enum DeliveryStatus {
+  DRAFT
+  APPROVED
+  SENT
+  DELIVERED
+  RESPONDED
+  NO_RESPONSE
+  FAILED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  READ
+  DISMISSED
+}
+
+// ==========================================
+// Normalized Core Entities (20+ Models)
+// ==========================================
+
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  planType  String
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roles                  Role[]
+  users                  User[]
+  userSessions           UserSession[]
+  members                Member[]
+  consents               Consent[]
+  ingestionBatches       IngestionBatch[]
+  referrals              Referral[]
+  providers              Provider[]
+  providerAvailabilities ProviderAvailability[]
+  cases                  Case[]
+  barriers               Barrier[]
+  riskAssessments        RiskAssessment[]
+  aiRecommendations      AIRecommendation[]
+  interventions          Intervention[]
+  interventionOutcomes   InterventionOutcome[]
+  communications         Communication[]
+  appointments           Appointment[]
+  verifications          CompletionVerification[]
+  workflowEvents         WorkflowEvent[]
+  caseNotes              CaseNote[]
+  auditEvents            AuditEvent[]
+  equityMetrics          EquityMetric[]
+  notifications          Notification[]
+  approvalRequests       ApprovalRequest[]
+  executionJournalEvents ExecutionJournalEvent[]
+  aiDecisionTraces       AIDecisionTrace[]
+  agentRuns                AgentRun[]
+  toolExecutionSpans       ToolExecutionSpan[]
+  executionLearningRecords ExecutionLearningRecord[]
+  evidences                Evidence[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code        UserRole
+  customCode  String?
+  name        String
+  description String
+  permissions String[]
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+
+  @@unique([tenantId, code, customCode])
+  @@index([code])
+}
+
+model User {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleId         String?
+  roleEntity     Role?    @relation(fields: [roleId], references: [id])
+  email          String
+  name           String
+  passwordHash   String
+  role           UserRole
+  customRoleCode String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assignedCases         Case[]                @relation("CaseAssignee")
+  assignedInterventions Intervention[]        @relation("InterventionOwner")
+  recordedOutcomes      InterventionOutcome[]
+  reviewedAiRecs        AIRecommendation[]
+  ingestionBatches      IngestionBatch[]
+  caseNotes             CaseNote[]
+  verifiedVerifications CompletionVerification[] @relation("VerificationVerifier")
+  notifications         Notification[]
+  sessions              UserSession[]
+  requestedApprovals    ApprovalRequest[]        @relation("ApprovalRequestedBy")
+  reviewedApprovals     ApprovalRequest[]        @relation("ApprovalApprovedBy")
+  deletedAt             DateTime?
+
+  @@unique([tenantId, email])
+  @@index([tenantId, role])
+  @@index([tenantId, deletedAt])
+}
+
+model UserSession {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+}
+
+model Member {
+  id                       String   @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  externalMemberId         String
+  firstName                String
+  lastName                 String
+  dobYear                  Int?
+  preferredLanguage        String   @default("English")
+  geography                String
+  urbanicity               String   @default("UNKNOWN")
+  coverageType             String   @default("UNKNOWN")
+  eligibilityStatus        String   @default("UNKNOWN")
+  networkName              String   @default("UNKNOWN")
+  preferredContactChannel  String   @default("UNKNOWN")
+  consentOutreach          Boolean  @default(true)
+  consentSms               Boolean  @default(false)
+  // Cohort-only equity monitoring fields (never used as individual risk predictors)
+  raceEthnicityCohort      String?
+  ageGroupCohort           String?
+  digitalAccessLevel       String   @default("UNKNOWN")
+  transportationAccess     String   @default("UNKNOWN")
+  priorNoShowCount         Int      @default(0)
+  historicalEngagementRate Float?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  consents       Consent[]
+  referrals      Referral[]
+  cases          Case[]
+  appointments   Appointment[]
+  communications Communication[]
+  deletedAt      DateTime?
+
+  @@unique([tenantId, externalMemberId])
+  @@index([tenantId, geography])
+  @@index([tenantId, preferredLanguage])
+  @@index([tenantId, deletedAt])
+}
+
+model Consent {
+  id        String               @id @default(cuid())
+  tenantId  String
+  tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member               @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  channel   CommunicationChannel
+  purpose   String
+  granted   Boolean
+  source    String               @default("INTAKE")
+  grantedAt DateTime             @default(now())
+  revokedAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  communications Communication[]
+
+  @@unique([tenantId, memberId, channel, purpose])
+  @@index([tenantId, memberId])
+}
+
+model IngestionBatch {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  sourceType   String   @default("CSV")
+  fileName     String
+  totalRows    Int
+  successRows  Int
+  errorRows    Int
+  errorsJson   Json?
+  createdAt    DateTime @default(now())
+
+  referrals Referral[]
+
+  @@index([tenantId, createdAt])
+}
+
+model Referral {
+  id                    String          @id @default(cuid())
+  tenantId              String
+  tenant                Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberId              String
+  member                Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  ingestionBatchId      String?
+  ingestionBatch        IngestionBatch? @relation(fields: [ingestionBatchId], references: [id])
+  externalReferralId    String
+  referralDate          DateTime
+  sourceSystem          String          @default("CSV_IMPORT")
+  behavioralHealthNeed  String
+  specialty             String
+  urgency               String          @default("ROUTINE")
+  geography             String
+  networkRequired       String          @default("UNKNOWN")
+  preferredLanguage     String          @default("English")
+  eligibilityVerified   String          @default("UNKNOWN")
+  referringProviderName String?
+  operationalNotes      String?
+  rawPayload            Json?
+  status                ReferralStatus  @default(RECEIVED)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  deletedAt             DateTime?
+
+  careCase          Case?
+  riskAssessments   RiskAssessment[]
+  aiRecommendations AIRecommendation[]
+
+  @@unique([tenantId, externalReferralId])
+  @@index([tenantId, status, referralDate])
+  @@index([tenantId, deletedAt])
+}
+
+model Provider {
+  id                         String             @id @default(cuid())
+  tenantId                   String
+  tenant                     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  npi                        String
+  name                       String
+  organizationName           String
+  specialty                  String
+  networkNames               String[]
+  languages                  String[]
+  geography                  String
+  county                     String
+  telehealthAvailable        Boolean            @default(false)
+  acceptingNewPatients       Boolean            @default(true)
+  availabilitySource         AvailabilitySource @default(DIRECTORY_INFORMATION)
+  nextVerifiedSlotAt         DateTime?
+  directoryWaitDays          Int?
+  availabilityLastVerifiedAt DateTime?
+  notes                      String?
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+  deletedAt                  DateTime?
+
+  availabilities ProviderAvailability[]
+  matchedCases   Case[]                 @relation("MatchedProvider")
+  appointments   Appointment[]
+
+  @@unique([tenantId, npi])
+  @@index([tenantId, specialty, geography])
+  @@index([tenantId, deletedAt])
+}
+
+model ProviderAvailability {
+  id               String             @id @default(cuid())
+  tenantId         String
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerId       String
+  provider         Provider           @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  slotStartAt      DateTime
+  slotEndAt        DateTime
+  modality         String
+  source           AvailabilitySource @default(VERIFIED_AVAILABILITY)
+  status           String             @default("AVAILABLE")
+  waitDaysEstimate Int?
+  verifiedAt       DateTime?
+  expiresAt        DateTime?
+  createdAt        DateTime           @default(now())
+
+  @@index([tenantId, providerId, status, slotStartAt])
+}
+
+model Case {
+  id                     String           @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referralId             String           @unique
+  referral               Referral         @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  memberId               String
+  member                 Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  assignedToId           String?
+  assignedTo             User?            @relation("CaseAssignee", fields: [assignedToId], references: [id])
+  matchedProviderId      String?
+  matchedProvider        Provider?        @relation("MatchedProvider", fields: [matchedProviderId], references: [id])
+  status                 CaseStatus       @default(NEW)
+  goal                   String           @default("Complete the member's behavioral-health referral through a verified first visit.")
+  priorityScore          Int              @default(50)
+  riskLevel              RiskLevel        @default(UNKNOWN)
+  riskExplanation        String?
+  primaryBarrierCategory BarrierCategory?
+  primaryBarrierCode     String?
+  escalationReason       String?
+  humanReviewRequired    Boolean          @default(false)
+  firstCompletedVisitAt  DateTime?
+  slaDueAt               DateTime?
+  closedAt               DateTime?
+  closureReason          String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  barriers          Barrier[]
+  riskAssessments   RiskAssessment[]
+  aiRecommendations AIRecommendation[]
+  interventions     Intervention[]
+  communications    Communication[]
+  appointments      Appointment[]
+  verifications     CompletionVerification[]
+  workflowEvents    WorkflowEvent[]
+  caseNotes              CaseNote[]
+  notifications          Notification[]
+  approvalRequests       ApprovalRequest[]
+  executionJournalEvents ExecutionJournalEvent[]
+  aiDecisionTraces       AIDecisionTrace[]
+  agentRuns               AgentRun[]
+  toolExecutionSpans      ToolExecutionSpan[]
+  executionLearningRecord ExecutionLearningRecord?
+  evidences               Evidence[]
+  deletedAt               DateTime?
+
+  @@index([tenantId, status, priorityScore])
+  @@index([tenantId, riskLevel])
+  @@index([tenantId, deletedAt])
+}
+
+model Barrier {
+  id               String          @id @default(cuid())
+  tenantId         String
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId           String
+  careCase         Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  category         BarrierCategory
+  subBarrier       String
+  epistemicStatus  EpistemicStatus
+  confidence       Float?
+  evidenceSummary  String?
+  evidenceSignals  Json            @default("[]")
+  uncertainty      String?
+  source           String          @default("DETERMINISTIC_RULES")
+  modelVersion     String?
+  reviewStatus     String          @default("PENDING_REVIEW")
+  confirmedByHuman Boolean         @default(false)
+  confirmedById    String?
+  reviewedById     String?
+  reviewNotes      String?
+  reviewedAt       DateTime?
+  resolved         Boolean         @default(false)
+  detectedAt       DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([tenantId, caseId])
+  @@index([tenantId, category])
+}
+
+model RiskAssessment {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId                    String
+  careCase                  Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  referralId                String
+  referral                  Referral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  riskLevel                 RiskLevel
+  score                     Int
+  confidence                Float
+  uncertainty               String
+  explanation               String
+  humanEscalationSuggested  Boolean   @default(false)
+  evidenceSignals           Json      @default("[]")
+  providerName              String
+  modelVersion              String
+  assessedAt                DateTime  @default(now())
+  createdAt                 DateTime  @default(now())
+
+  @@index([tenantId, caseId, assessedAt])
+}
+
+model AIRecommendation {
+  id                String               @id @default(cuid())
+  tenantId          String
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId            String?
+  careCase          Case?                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  referralId        String?
+  referral          Referral?            @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  operation         AIOperation
+  status            RecommendationStatus @default(PENDING)
+  providerName      String
+  modelVersion      String
+  promptVersion     String?
+  inputContext      Json?
+  outputPayload     Json?
+  resultingAction   String?
+  facts             Json
+  inferences        Json
+  recommendations   Json
+  confidence        Float
+  uncertainty       String
+  evidenceSignals   Json
+  humanReviewerId   String?
+  humanReviewer     User?                @relation(fields: [humanReviewerId], references: [id])
+  humanReviewNotes  String?
+  reviewedAt        DateTime?
+  correlationId     String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  interventions  Intervention[]
+  communications Communication[]
+
+  @@index([tenantId, caseId, createdAt])
+  @@index([tenantId, operation, status])
+}
+
+model Intervention {
+  id                        String             @id @default(cuid())
+  tenantId                  String
+  tenant                    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId                    String
+  careCase                  Case               @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type                      InterventionType
+  reason                    String
+  triggeringBarrierCategory BarrierCategory?
+  triggeringBarrierCode     String?
+  recommendedAction         String
+  executionMode             InterventionExecutionMode @default(HUMAN_ASSISTED)
+  automationEligible        Boolean                   @default(false)
+  isHighRisk                Boolean                   @default(false)
+  confidence                Float                     @default(0.75)
+  requiredHumanInvolvement  String                    @default("Care Manager review and approval required prior to execution.")
+  expectedOutcome           String                    @default("Coordinate next step toward confirmed behavioral-health appointment.")
+  autoExecuted              Boolean                   @default(false)
+  assignedOwnerId           String?
+  assignedOwner             User?              @relation("InterventionOwner", fields: [assignedOwnerId], references: [id])
+  status                    InterventionStatus @default(RECOMMENDED)
+  epistemicOrigin           String             @default("AI_RECOMMENDATION")
+  aiRecommendationId        String?
+  aiRecommendation          AIRecommendation?  @relation(fields: [aiRecommendationId], references: [id])
+  evidence                  Json?
+  notes                     String?
+  recommendedAt             DateTime           @default(now())
+  approvedAt                DateTime?
+  startedAt                 DateTime?
+  completedAt               DateTime?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+
+  outcomes       InterventionOutcome[]
+  communications Communication[]
+
+  @@index([tenantId, caseId, status])
+}
+
+model InterventionOutcome {
+  id               String       @id @default(cuid())
+  tenantId         String
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  interventionId   String
+  intervention     Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
+  outcomeStatus    String
+  summary          String
+  barriersResolved Boolean      @default(false)
+  followUpRequired Boolean      @default(false)
+  evidence         Json?
+  recordedById     String?
+  recordedBy       User?        @relation(fields: [recordedById], references: [id])
+  recordedAt       DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+
+  @@index([tenantId, interventionId])
+}
+
+model Communication {
+  id                    String                   @id @default(cuid())
+  tenantId              String
+  tenant                Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId                String
+  careCase              Case                     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  memberId              String
+  member                Member                   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  interventionId        String?
+  intervention          Intervention?            @relation(fields: [interventionId], references: [id])
+  consentId             String?
+  consent               Consent?                 @relation(fields: [consentId], references: [id])
+  aiRecommendationId    String?
+  aiRecommendation      AIRecommendation?        @relation(fields: [aiRecommendationId], references: [id])
+  channel               CommunicationChannel
+  messageType           CommunicationMessageType @default(HUMAN_OUTREACH)
+  templateKey           String                   @default("human_outreach.plain")
+  recipient             String                   @default("Member")
+  direction             String                   @default("OUTBOUND")
+  language              String                   @default("English")
+  readingLevel          ReadingLevel             @default(PLAIN)
+  draftedByAi           Boolean                  @default(false)
+  internalAiLabel       String                   @default("HUMAN_AUTHORED")
+  humanApprovedById     String?
+  content               String                   @default("")
+  messageSummary        String
+  deliveryStatus        DeliveryStatus           @default(DRAFT)
+  deliveryMode          String                   @default("MOCK")
+  validationPassed      Boolean                  @default(true)
+  externalMessageId     String?
+  memberResponseSummary String?
+  outcomeSummary        String?
+  approvedAt            DateTime?
+  sentAt                DateTime?
+  deliveredAt           DateTime?
+  respondedAt           DateTime?
+  createdAt             DateTime                 @default(now())
+
+  @@index([tenantId, caseId])
+  @@index([tenantId, memberId])
+}
+
+model Appointment {
+  id                          String             @id @default(cuid())
+  tenantId                    String
+  tenant                      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId                      String
+  careCase                    Case               @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  memberId                    String
+  member                      Member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  providerId                  String
+  provider                    Provider           @relation(fields: [providerId], references: [id])
+  scheduledStartAt            DateTime
+  modality                    String
+  status                      AppointmentStatus  @default(SCHEDULED)
+  availabilitySourceAtBooking AvailabilitySource @default(DIRECTORY_INFORMATION)
+  reminderSentAt              DateTime?
+  reminderChannel             String?
+  confirmedAt                 DateTime?
+  completedAt                 DateTime?
+  cancellationReason          String?
+  createdAt                   DateTime           @default(now())
+  updatedAt                   DateTime           @updatedAt
+
+  verifications CompletionVerification[]
+  notifications Notification[]
+
+  @@index([tenantId, status, scheduledStartAt])
+  @@index([tenantId, caseId])
+}
+
+model CompletionVerification {
+  id                 String                 @id @default(cuid())
+  tenantId           String
+  tenant             Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId             String
+  careCase           Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  appointmentId      String?
+  appointment        Appointment?           @relation(fields: [appointmentId], references: [id])
+  signalType         VerificationSignalType
+  verified           Boolean                @default(true)
+  verificationStatus VerificationStatus     @default(VERIFIED)
+  confidence         Float                  @default(0.9)
+  sourceSystem       String
+  evidenceNote       String
+  verifiedById       String?
+  verifiedBy         User?                  @relation("VerificationVerifier", fields: [verifiedById], references: [id])
+  verifiedAt         DateTime               @default(now())
+  createdAt          DateTime               @default(now())
+
+  @@index([tenantId, caseId, signalType])
+}
+
+model WorkflowEvent {
+  id         String            @id @default(cuid())
+  tenantId   String
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId     String
+  careCase   Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  eventType  WorkflowEventType @default(STATUS_TRANSITION)
+  fromStatus CaseStatus?
+  toStatus   CaseStatus
+  actorId    String?
+  actorRole  String?
+  reason     String
+  metadata   Json?
+  createdAt  DateTime          @default(now())
+
+  @@index([tenantId, caseId, createdAt])
+  @@index([tenantId, eventType])
+}
+
+model CaseNote {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId    String
+  careCase  Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id])
+  category  String   @default("COORDINATION")
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, caseId, createdAt])
+}
+
+model AuditEvent {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actorId       String?
+  actorEmail    String?
+  actorRole     String?
+  action        String
+  entityType    String
+  entityId      String
+  previousState Json?
+  newState      Json?
+  source        String   @default("API")
+  correlationId String?
+  summary       String
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, correlationId])
+}
+
+model EquityMetric {
+  id                    String           @id @default(cuid())
+  tenantId              String
+  tenant                Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cohortDimension       String
+  cohortValue           String
+  periodStart           DateTime
+  periodEnd             DateTime
+  totalReferrals        Int
+  completedVisits       Int
+  completionRatePct     Float
+  avgTimeToCareDays     Float?
+  disparityGapPctPoints Float
+  topBarrierCategory    BarrierCategory?
+  computedAt            DateTime         @default(now())
+
+  @@index([tenantId, cohortDimension, computedAt])
+}
+
+model Notification {
+  id               String             @id @default(cuid())
+  tenantId         String
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipientUserId  String?
+  recipientUser    User?              @relation(fields: [recipientUserId], references: [id])
+  caseId           String?
+  careCase         Case?              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  appointmentId    String?
+  appointment      Appointment?       @relation(fields: [appointmentId], references: [id])
+  channel          String             @default("IN_APP")
+  notificationType String
+  title            String
+  message          String
+  status           NotificationStatus @default(PENDING)
+  scheduledFor     DateTime?
+  sentAt           DateTime?
+  readAt           DateTime?
+  createdAt        DateTime           @default(now())
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, recipientUserId])
+}
+
+model ApprovalRequest {
+  id                   String         @id @default(cuid())
+  tenantId             String
+  tenant               Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId               String
+  careCase             Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  action               String
+  reason               String
+  riskLevel            String
+  requestedBy          String
+  requestedByUserId    String?
+  requestedByUser      User?          @relation("ApprovalRequestedBy", fields: [requestedByUserId], references: [id])
+  requestedAt          DateTime       @default(now())
+  expiresAt            DateTime?
+  status               ApprovalStatus @default(PENDING)
+  approvedById         String?
+  approvedBy           User?          @relation("ApprovalApprovedBy", fields: [approvedById], references: [id])
+  approvedAt           DateTime?
+  decision             String?
+  comments             String?
+  toolInputJson        Json?
+  proposedNextState    String?
+  orchestratorSnapshot Json?
+  executionResultJson  Json?
+  resumedAt            DateTime?
+  idempotencyKey       String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  @@index([tenantId, caseId, status])
+  @@index([tenantId, status, requestedAt])
+}
+
+enum ExecutionActorType {
+  AGENT
+  HUMAN
+  SYSTEM
+  TOOL
+}
+
+model ExecutionJournalEvent {
+  id              String             @id @default(cuid())
+  tenantId        String
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId          String
+  careCase        Case               @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  actorType       ExecutionActorType
+  actorId         String
+  eventType       String
+  timestamp       DateTime           @default(now())
+  inputReference  String?
+  outputReference String?
+  policyDecision  String?
+  evidence        Json?
+  correlationId   String?
+  createdAt       DateTime           @default(now())
+
+  @@index([tenantId, caseId, timestamp])
+  @@index([tenantId, eventType, timestamp])
+  @@index([tenantId, correlationId])
+}
+
+model AIDecisionTrace {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId                String
+  careCase              Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  agent                 String
+  model                 String
+  promptVersion         String
+  inputContextHash      String
+  decision              String
+  confidence            Float
+  evidence              Json     @default("[]")
+  policyResult          String
+  toolSelected          String
+  humanApprovalRequired Boolean
+  correlationId         String?
+  createdAt             DateTime @default(now())
+
+  @@index([tenantId, caseId, createdAt])
+  @@index([tenantId, agent, createdAt])
+  @@index([tenantId, inputContextHash])
+}
+
+enum AgentRunStatus {
+  STARTED
+  PAUSED
+  AWAITING_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELLED
+  ESCALATED
+}
+
+model AgentRun {
+  id                String         @id @default(cuid())
+  tenantId          String
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId            String
+  careCase          Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  agent             String         @default("CareLoopCaseOrchestrator")
+  model             String
+  promptVersion     String
+  status            AgentRunStatus @default(STARTED)
+  goal              String?
+  currentStep       String         @default("INITIALIZED")
+  checkpointJson    Json?
+  correlationId     String?
+  decisionTraceId   String?
+  approvalRequestId String?
+  policyResult      String?
+  latencyMs         Int?
+  promptTokens      Int            @default(0)
+  completionTokens  Int            @default(0)
+  totalTokens       Int            @default(0)
+  retryCount        Int            @default(0)
+  maxRetries        Int            @default(3)
+  errorMessage      String?
+  lastError         String?
+  startedAt         DateTime       @default(now())
+  pausedAt          DateTime?
+  cancelledAt       DateTime?
+  escalatedAt       DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @default(now()) @updatedAt
+
+  toolSpans ToolExecutionSpan[]
+
+  @@index([tenantId, caseId, startedAt])
+  @@index([tenantId, status, startedAt])
+  @@index([tenantId, correlationId])
+}
+
+model ToolExecutionSpan {
+  id             String    @id @default(cuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId         String?
+  careCase       Case?     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  agentRunId     String?
+  agentRun       AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  tool           String
+  status         String
+  latencyMs      Int
+  retryCount     Int       @default(0)
+  policyDecision String?
+  replayed       Boolean   @default(false)
+  errorCode      String?
+  errorMessage   String?
+  correlationId  String?
+  startedAt      DateTime
+  completedAt    DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+
+  @@index([tenantId, caseId, startedAt])
+  @@index([tenantId, tool, startedAt])
+  @@index([tenantId, correlationId])
+}
+
+model ExecutionLearningRecord {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId              String   @unique
+  careCase            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  populationSegment   String
+  urbanicity          String
+  coverageType        String
+  preferredLanguage   String
+  digitalAccessLevel  String
+  specialty           String
+  urgency             String
+  riskLevel           String
+  primaryBarrier      String?
+  barrierSubCategory  String?
+  primaryAction       String?
+  interventionTypes   Json     @default("[]")
+  executionStrategy   String
+  executionPath       Json     @default("[]")
+  humanApprovalCount  Int      @default(0)
+  humanReviewRequired Boolean  @default(false)
+  humanIntervention   Boolean  @default(false)
+  timeToResolutionMs  Float?
+  agentRunCount       Int      @default(0)
+  toolCallCount       Int      @default(0)
+  outreachAttempts    Int      @default(0)
+  estimatedCostUnits  Float    @default(0)
+  finalStatus         String
+  outcomeStatus       String
+  verifiedCompletion  Boolean  @default(false)
+  barrierResolved     Boolean  @default(false)
+  recordedAt          DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([tenantId, populationSegment, primaryBarrier])
+  @@index([tenantId, primaryBarrier, executionStrategy, outcomeStatus])
+  @@index([tenantId, outcomeStatus, recordedAt])
+}
+
+model Evidence {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  caseId              String
+  careCase            Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  agentRunId          String?
+  toolExecutionSpanId String?
+  sourceType          String
+  summary             String
+  payloadHash         String
+  payload             Json      @default("{}")
+  capturedBy          String
+  capturedAt          DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  @@index([tenantId, caseId, capturedAt])
+  @@index([tenantId, sourceType])
+  @@index([tenantId, deletedAt])
+}

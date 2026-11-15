@@ -1,0 +1,24 @@
+# Dependency & Build Outputs
+node_modules/
+.next/
+out/
+dist/
+coverage/
+
+# Build caches & info
+*.tsbuildinfo
+.turbo/
+.cache/
+
+# Environment files
+.env
+.env*.local
+!.env.example
+
+# Unrelated external reference directory
+agent-master/
+
+# System and logs
+*.log
+.DS_Store
+Thumbs.db
